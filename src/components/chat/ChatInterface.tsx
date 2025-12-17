@@ -6,6 +6,7 @@ import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
 import { useEffect, useRef, useState } from "react";
+import { Plus } from "lucide-react";
 
 interface ChatInterfaceProps {
   conversationId: Id<"conversations">;
@@ -143,46 +144,36 @@ export function ChatInterface({
         )}
         {messages.map((message) => {
           const text = getMessageText(message);
+          const isAssistant = message.role === "assistant";
           return (
             <div
               key={message.id}
-              className={`flex ${
-                message.role === "user" ? "justify-end" : "justify-start"
+              className={`flex flex-col ${
+                message.role === "user" ? "items-end" : "items-start"
               }`}
             >
               <div
-                className={`group relative max-w-[80%] px-4 py-3 rounded-2xl ${
+                className={`max-w-[85%] md:max-w-[80%] px-4 py-3 rounded-2xl ${
                   message.role === "user"
                     ? "bg-primary text-primary-foreground"
                     : "bg-card text-card-foreground border border-border"
                 }`}
               >
                 {/* Render message content */}
-                <div className="whitespace-pre-wrap">{text}</div>
-
-                {/* Add to canvas button */}
-                {onAddToCanvas && text && (
-                  <button
-                    onClick={() => onAddToCanvas(text)}
-                    className="absolute -right-2 -top-2 opacity-0 group-hover:opacity-100 p-1.5 bg-muted hover:bg-muted/80 rounded-full transition-all border border-border"
-                    title="Add to canvas"
-                  >
-                    <svg
-                      className="w-3 h-3 text-muted-foreground"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 4v16m8-8H4"
-                      />
-                    </svg>
-                  </button>
-                )}
+                <div className="whitespace-pre-wrap text-sm md:text-base">{text}</div>
               </div>
+
+              {/* Add to canvas button - below message for assistant */}
+              {onAddToCanvas && text && isAssistant && (
+                <button
+                  onClick={() => onAddToCanvas(text)}
+                  className="mt-2 flex items-center gap-1.5 px-3 py-1.5 text-xs md:text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors active:scale-95"
+                  title="Add to canvas"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add to Canvas</span>
+                </button>
+              )}
             </div>
           );
         })}
@@ -209,7 +200,7 @@ export function ChatInterface({
       </div>
 
       {/* Input Form */}
-      <form onSubmit={onSubmit} className="p-4 border-t border-border">
+      <form onSubmit={onSubmit} className="p-3 md:p-4 border-t border-border bg-background">
         <div className="flex gap-2">
           <input
             type="text"
@@ -217,14 +208,14 @@ export function ChatInterface({
             onChange={(e) => setInput(e.target.value)}
             placeholder="Type a message..."
             disabled={isLoading}
-            className="flex-1 px-4 py-3 bg-card border border-input rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-colors disabled:opacity-50"
+            className="flex-1 px-4 py-3 bg-card border border-input rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-colors disabled:opacity-50 text-base"
           />
 
           {isLoading ? (
             <button
               type="button"
               onClick={stop}
-              className="px-6 py-3 bg-destructive hover:bg-destructive/90 text-destructive-foreground rounded-xl font-medium transition-colors"
+              className="px-4 md:px-6 py-3 bg-destructive hover:bg-destructive/90 text-destructive-foreground rounded-xl font-medium transition-colors active:scale-95"
             >
               Stop
             </button>
@@ -232,7 +223,7 @@ export function ChatInterface({
             <button
               type="submit"
               disabled={!input.trim()}
-              className="px-6 py-3 bg-primary hover:bg-primary/90 text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-medium transition-colors"
+              className="px-4 md:px-6 py-3 bg-primary hover:bg-primary/90 text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-medium transition-colors active:scale-95"
             >
               Send
             </button>
@@ -246,7 +237,7 @@ export function ChatInterface({
             <button
               type="button"
               onClick={() => regenerate()}
-              className="mt-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              className="mt-2 text-sm text-muted-foreground hover:text-foreground transition-colors active:opacity-70"
             >
               Regenerate response
             </button>

@@ -3,9 +3,11 @@ import { mutation, query, action } from "./_generated/server";
 import { api } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
 
-// Access environment variable for site URL
+// Access environment variables
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const getSiteUrl = () => (globalThis as any).process?.env?.SITE_URL || "http://localhost:3005";
+const getEnv = (key: string) => (globalThis as any).process?.env?.[key] as string | undefined;
+const getSiteUrl = () => getEnv("SITE_URL") || "http://localhost:3005";
+const getOpenAIKey = () => getEnv("OPENAI_API_KEY");
 
 // Generate upload URL for audio file
 export const generateUploadUrl = mutation({
@@ -125,24 +127,31 @@ export const process = action({
       const audioResponse = await fetch(audioUrl);
       const audioBlob = await audioResponse.blob();
 
-      // Get the app URL from Convex environment variable
-      const appUrl = getSiteUrl();
+      // Call OpenAI Whisper API directly from Convex
+      const openAIFormData = new FormData();
+      openAIFormData.append("file", audioBlob, "audio.webm");
+      openAIFormData.append("model", "whisper-1");
+      openAIFormData.append("response_format", "json");
 
-      // Transcribe via API route
-      const formData = new FormData();
-      formData.append("audio", audioBlob, "audio.webm");
-
-      const transcribeResponse = await fetch(`${appUrl}/api/transcribe`, {
-        method: "POST",
-        body: formData,
-      });
+      const transcribeResponse = await fetch(
+        "https://api.openai.com/v1/audio/transcriptions",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${getOpenAIKey()}`,
+          },
+          body: openAIFormData,
+        }
+      );
 
       if (!transcribeResponse.ok) {
-        const error = await transcribeResponse.text();
-        throw new Error(`Transcription failed: ${error}`);
+        const errorText = await transcribeResponse.text();
+        console.error("Whisper API error:", errorText);
+        throw new Error(`Transcription failed: ${errorText}`);
       }
 
-      const { transcription } = await transcribeResponse.json();
+      const whisperResult = await transcribeResponse.json();
+      const transcription = whisperResult.text;
 
       // Update with transcription
       await ctx.runMutation(api.voiceNotes.updateStatus, {
@@ -154,7 +163,8 @@ export const process = action({
       // Get existing notes for context
       const existingNodes = await ctx.runQuery(api.canvas.listNodes);
 
-      // Extract concepts via AI
+      // Extract concepts via AI (still use Vercel route for Anthropic)
+      const appUrl = getSiteUrl();
       const extractResponse = await fetch(`${appUrl}/api/extract-concepts`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

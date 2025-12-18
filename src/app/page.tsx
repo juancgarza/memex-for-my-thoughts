@@ -2,7 +2,9 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { useMutation, useAction } from "convex/react";
-import { useHotkeys } from "react-hotkeys-hook";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore - tinykeys types issue with package.json exports
+import { tinykeys } from "tinykeys";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
 import { ChatSidebar } from "@/components/chat/ChatSidebar";
@@ -72,33 +74,34 @@ export default function Home() {
   }, [view, isMobile]);
 
   // Keyboard shortcuts (vim-style with 'g' leader key)
-  // g then c = chat, g then v = canvas, g then n = notes
-  useHotkeys("g c", () => setView("chat"), { enableOnFormTags: false });
-  useHotkeys("g v", () => setView("canvas"), { enableOnFormTags: false });
-  useHotkeys("g n", () => setView("notes"), { enableOnFormTags: false });
-
-  // Navigate between views: g [ (prev) and g ] (next)
-  useHotkeys("g [", () => {
-    const currentIndex = VIEWS.indexOf(view);
-    const prevIndex = (currentIndex - 1 + VIEWS.length) % VIEWS.length;
-    setView(VIEWS[prevIndex]);
-  }, { enableOnFormTags: false });
-
-  useHotkeys("g ]", () => {
-    const currentIndex = VIEWS.indexOf(view);
-    const nextIndex = (currentIndex + 1) % VIEWS.length;
-    setView(VIEWS[nextIndex]);
-  }, { enableOnFormTags: false });
-
-  // New chat: g o (open new)
-  useHotkeys("g o", () => {
-    handleNewChat();
-  }, { enableOnFormTags: false });
-
-  // Toggle theme: g t
-  useHotkeys("g t", () => {
-    toggleTheme();
-  }, { enableOnFormTags: false });
+  useEffect(() => {
+    const unsubscribe = tinykeys(window, {
+      // g then c = chat, g then v = canvas, g then n = notes
+      "g c": () => setView("chat"),
+      "g v": () => setView("canvas"),
+      "g n": () => setView("notes"),
+      // Navigate between views: g h (prev) and g l (next) - vim style h/l
+      "g h": () => {
+        setView(prev => {
+          const currentIndex = VIEWS.indexOf(prev);
+          const prevIndex = (currentIndex - 1 + VIEWS.length) % VIEWS.length;
+          return VIEWS[prevIndex];
+        });
+      },
+      "g l": () => {
+        setView(prev => {
+          const currentIndex = VIEWS.indexOf(prev);
+          const nextIndex = (currentIndex + 1) % VIEWS.length;
+          return VIEWS[nextIndex];
+        });
+      },
+      // New chat: g o (open new)
+      "g o": () => handleNewChat(),
+      // Toggle theme: g t
+      "g t": () => toggleTheme(),
+    });
+    return () => unsubscribe();
+  }, [handleNewChat, toggleTheme]);
 
   const handleAddToCanvas = useCallback(
     async (content: string) => {

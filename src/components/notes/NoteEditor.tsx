@@ -68,6 +68,7 @@ export function NoteEditor({ noteId, onNavigate }: NoteEditorProps) {
   }, []);
 
   const editor = useEditor({
+    immediatelyRender: false,
     extensions: [
       StarterKit.configure({
         heading: {

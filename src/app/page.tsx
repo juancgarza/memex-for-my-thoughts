@@ -71,49 +71,34 @@ export default function Home() {
     }
   }, [view, isMobile]);
 
-  // Keyboard shortcuts
-  // Navigate between views: cmd+[ (prev) and cmd+] (next)
-  useHotkeys("meta+[", (e) => {
-    e.preventDefault();
+  // Keyboard shortcuts (vim-style with 'g' leader key)
+  // g then c = chat, g then v = canvas, g then n = notes
+  useHotkeys("g c", () => setView("chat"), { enableOnFormTags: false });
+  useHotkeys("g v", () => setView("canvas"), { enableOnFormTags: false });
+  useHotkeys("g n", () => setView("notes"), { enableOnFormTags: false });
+
+  // Navigate between views: g [ (prev) and g ] (next)
+  useHotkeys("g [", () => {
     const currentIndex = VIEWS.indexOf(view);
     const prevIndex = (currentIndex - 1 + VIEWS.length) % VIEWS.length;
     setView(VIEWS[prevIndex]);
   }, { enableOnFormTags: false });
 
-  useHotkeys("meta+]", (e) => {
-    e.preventDefault();
+  useHotkeys("g ]", () => {
     const currentIndex = VIEWS.indexOf(view);
     const nextIndex = (currentIndex + 1) % VIEWS.length;
     setView(VIEWS[nextIndex]);
   }, { enableOnFormTags: false });
 
-  // Quick jump to views: cmd+1 (chat), cmd+2 (canvas), cmd+3 (notes)
-  useHotkeys("meta+1", (e) => {
-    e.preventDefault();
-    setView("chat");
-  }, { enableOnFormTags: false });
-
-  useHotkeys("meta+2", (e) => {
-    e.preventDefault();
-    setView("canvas");
-  }, { enableOnFormTags: false });
-
-  useHotkeys("meta+3", (e) => {
-    e.preventDefault();
-    setView("notes");
-  }, { enableOnFormTags: false });
-
-  // New chat: cmd+n
-  useHotkeys("meta+n", (e) => {
-    e.preventDefault();
+  // New chat: g o (open new)
+  useHotkeys("g o", () => {
     handleNewChat();
   }, { enableOnFormTags: false });
 
-  // Toggle theme: cmd+shift+l
-  useHotkeys("meta+shift+l", (e) => {
-    e.preventDefault();
+  // Toggle theme: g t
+  useHotkeys("g t", () => {
     toggleTheme();
-  }, { enableOnFormTags: true });
+  }, { enableOnFormTags: false });
 
   const handleAddToCanvas = useCallback(
     async (content: string) => {

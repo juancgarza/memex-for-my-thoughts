@@ -79,7 +79,15 @@ export function NoteEditor({ noteId, onNavigate }: NoteEditorProps) {
         horizontalRule: false,
       }),
       // Add horizontal rule without the automatic *** input rule
-      HorizontalRule,
+      HorizontalRule.configure({
+        HTMLAttributes: {
+          class: "my-4",
+        },
+      }).extend({
+        addInputRules() {
+          return []; // Disable all input rules (no auto *** conversion)
+        },
+      }),
       Placeholder.configure({
         placeholder: 'Type "/" for commands...',
       }),

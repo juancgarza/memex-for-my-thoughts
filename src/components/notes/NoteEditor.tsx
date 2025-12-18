@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useCallback, useState, useMemo } from "react";
+import { useEffect, useCallback, useState, useMemo, useRef } from "react";
 import { EditorContent } from "@tiptap/react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
@@ -105,9 +105,13 @@ export function NoteEditor({ noteId, onNavigate }: NoteEditorProps) {
     onLinkClick: handleLinkClick,
   });
 
-  // Update content when noteId changes (switching notes)
+  // Update content ONLY when switching to a different note
+  // We use a ref to track the previous noteId to avoid resetting on save
+  const prevNoteIdRef = useRef<string | null>(null);
   useEffect(() => {
-    if (note?.content) {
+    if (noteId !== prevNoteIdRef.current && note?.content !== undefined) {
+      // Switching notes or initial load - update content
+      prevNoteIdRef.current = noteId;
       setContent(note.content);
     }
   }, [noteId, note?.content, setContent]);

@@ -3,6 +3,7 @@
 import { useEffect, useCallback, useRef, useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
+import HorizontalRule from "@tiptap/extension-horizontal-rule";
 import Placeholder from "@tiptap/extension-placeholder";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
@@ -74,7 +75,11 @@ export function NoteEditor({ noteId, onNavigate }: NoteEditorProps) {
         heading: {
           levels: [1, 2, 3],
         },
+        // Disable StarterKit's horizontalRule, we'll add our own without input rules
+        horizontalRule: false,
       }),
+      // Add horizontal rule without the automatic *** input rule
+      HorizontalRule,
       Placeholder.configure({
         placeholder: 'Type "/" for commands...',
       }),
@@ -130,8 +135,10 @@ export function NoteEditor({ noteId, onNavigate }: NoteEditorProps) {
 
   return (
     <div className="flex-1 overflow-y-auto bg-background">
-      <div className="max-w-2xl mx-auto px-4 py-12 md:px-8">
-        <EditorContent editor={editor} className="note-editor" />
+      <div className="w-full flex justify-center">
+        <div className="w-full max-w-2xl px-6 py-12 md:px-12">
+          <EditorContent editor={editor} className="note-editor" />
+        </div>
       </div>
     </div>
   );

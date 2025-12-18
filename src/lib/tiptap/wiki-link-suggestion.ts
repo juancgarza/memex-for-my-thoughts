@@ -99,20 +99,35 @@ export const WikiLinkSuggestion = Extension.create({
         pluginKey: new PluginKey("wikiLinkSuggestion"),
         command: ({
           editor,
-          range,
           props,
         }: {
           editor: Editor;
           range: Range;
           props: WikiLinkSuggestionItem;
         }) => {
-          // Delete the [[ and query text, insert wiki link
-          editor
-            .chain()
-            .focus()
-            .deleteRange(range)
-            .insertContent(`[[${props.title}]]`)
-            .run();
+          const { view, state } = editor;
+          const { $head, $from } = view.state.selection;
+
+          const end = $from.pos;
+          // Get text before cursor in current node
+          const textBefore = $head?.nodeBefore?.text || "";
+          const bracketIndex = textBefore.lastIndexOf("[[");
+
+          let from: number;
+          if (bracketIndex !== -1) {
+            // Delete from "[[" to cursor
+            from = end - (textBefore.length - bracketIndex);
+          } else {
+            // Fallback: delete from start of current text node
+            from = end - textBefore.length;
+          }
+
+          // Delete the [[ and query text, then insert wiki link
+          const tr = state.tr.deleteRange(from, end);
+          view.dispatch(tr);
+
+          // Insert the wiki link
+          editor.chain().focus().insertContent(`[[${props.title}]]`).run();
         },
         items: ({ query }: { query: string }) => {
           const titles = getNoteTitles();

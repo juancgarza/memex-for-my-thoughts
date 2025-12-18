@@ -86,7 +86,7 @@ export function NoteEditor({ noteId, onNavigate }: NoteEditorProps) {
     content: "",
     editorProps: {
       attributes: {
-        class: "prose prose-sm sm:prose dark:prose-invert max-w-none focus:outline-none min-h-[calc(100vh-200px)] p-4",
+        class: "note-editor-content focus:outline-none min-h-[60vh]",
       },
     },
     onUpdate: ({ editor }) => {
@@ -130,8 +130,8 @@ export function NoteEditor({ noteId, onNavigate }: NoteEditorProps) {
 
   return (
     <div className="flex-1 overflow-y-auto bg-background">
-      <div className="max-w-3xl mx-auto py-8">
-        <EditorContent editor={editor} />
+      <div className="max-w-2xl mx-auto px-4 py-12 md:px-8">
+        <EditorContent editor={editor} className="note-editor" />
       </div>
     </div>
   );

@@ -348,12 +348,24 @@ button,
   }
 }
 
-/* TipTap Editor Styles */
-.ProseMirror {
+/* ==========================================
+   Note Editor Styles (Notion-like)
+   ========================================== */
+
+/* Base editor styles */
+.note-editor-content {
+  color: hsl(var(--foreground));
+  font-size: 16px;
+  line-height: 1.7;
+  caret-color: hsl(var(--primary));
+}
+
+.note-editor-content:focus {
   outline: none;
 }
 
-.ProseMirror p.is-editor-empty:first-child::before {
+/* Placeholder */
+.note-editor-content p.is-editor-empty:first-child::before {
   color: hsl(var(--muted-foreground));
   content: attr(data-placeholder);
   float: left;
@@ -361,103 +373,166 @@ button,
   pointer-events: none;
 }
 
-/* Wiki link styling */
-.wiki-link {
-  color: hsl(var(--primary));
-  text-decoration: underline;
-  text-decoration-color: hsl(var(--primary) / 0.5);
-  cursor: pointer;
-  font-weight: 500;
-}
-
-.wiki-link:hover {
-  text-decoration-color: hsl(var(--primary));
-}
-
-/* Prose styling for TipTap editor */
-.prose {
+/* Headings */
+.note-editor-content h1 {
+  font-size: 2.25em;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-top: 2em;
+  margin-bottom: 0.5em;
   color: hsl(var(--foreground));
+  letter-spacing: -0.02em;
 }
 
-.prose h1,
-.prose h2,
-.prose h3 {
-  color: hsl(var(--foreground));
+.note-editor-content h1:first-child {
+  margin-top: 0;
+}
+
+.note-editor-content h2 {
+  font-size: 1.5em;
   font-weight: 600;
-  line-height: 1.25;
+  line-height: 1.3;
+  margin-top: 1.75em;
+  margin-bottom: 0.5em;
+  color: hsl(var(--foreground));
+}
+
+.note-editor-content h3 {
+  font-size: 1.25em;
+  font-weight: 600;
+  line-height: 1.4;
   margin-top: 1.5em;
   margin-bottom: 0.5em;
+  color: hsl(var(--foreground));
 }
 
-.prose h1 {
-  font-size: 2em;
-}
-
-.prose h2 {
-  font-size: 1.5em;
-}
-
-.prose h3 {
-  font-size: 1.25em;
-}
-
-.prose p {
-  margin-top: 0.75em;
+/* Paragraphs */
+.note-editor-content p {
+  margin-top: 0;
   margin-bottom: 0.75em;
-  line-height: 1.7;
 }
 
-.prose ul,
-.prose ol {
+.note-editor-content p:last-child {
+  margin-bottom: 0;
+}
+
+/* Lists */
+.note-editor-content ul,
+.note-editor-content ol {
   padding-left: 1.5em;
   margin-top: 0.5em;
-  margin-bottom: 0.5em;
+  margin-bottom: 0.75em;
 }
 
-.prose li {
+.note-editor-content ul {
+  list-style-type: disc;
+}
+
+.note-editor-content ol {
+  list-style-type: decimal;
+}
+
+.note-editor-content li {
   margin-top: 0.25em;
   margin-bottom: 0.25em;
 }
 
-.prose blockquote {
-  border-left: 3px solid hsl(var(--border));
+.note-editor-content li p {
+  margin: 0;
+}
+
+/* Nested lists */
+.note-editor-content ul ul,
+.note-editor-content ol ol,
+.note-editor-content ul ol,
+.note-editor-content ol ul {
+  margin-top: 0.25em;
+  margin-bottom: 0.25em;
+}
+
+/* Blockquote */
+.note-editor-content blockquote {
+  border-left: 3px solid hsl(var(--primary) / 0.5);
   padding-left: 1em;
-  margin-left: 0;
-  font-style: italic;
+  margin: 1em 0;
   color: hsl(var(--muted-foreground));
 }
 
-.prose code {
-  background: hsl(var(--muted));
-  padding: 0.2em 0.4em;
-  border-radius: 0.25em;
-  font-size: 0.875em;
+.note-editor-content blockquote p {
+  margin: 0;
 }
 
-.prose pre {
+/* Code */
+.note-editor-content code {
   background: hsl(var(--muted));
+  color: hsl(var(--foreground));
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+  font-size: 0.9em;
+  font-family: var(--font-mono), ui-monospace, monospace;
+}
+
+.note-editor-content pre {
+  background: hsl(var(--muted));
+  border-radius: 8px;
   padding: 1em;
-  border-radius: 0.5em;
+  margin: 1em 0;
   overflow-x: auto;
 }
 
-.prose pre code {
+.note-editor-content pre code {
   background: transparent;
   padding: 0;
+  font-size: 0.875em;
+  line-height: 1.6;
 }
 
-.prose strong {
+/* Horizontal rule */
+.note-editor-content hr {
+  border: none;
+  border-top: 1px solid hsl(var(--border));
+  margin: 2em 0;
+}
+
+/* Strong & emphasis */
+.note-editor-content strong {
   font-weight: 600;
 }
 
-.prose a {
-  color: hsl(var(--primary));
-  text-decoration: underline;
+.note-editor-content em {
+  font-style: italic;
 }
 
-.prose hr {
-  border-color: hsl(var(--border));
-  margin: 2em 0;
+/* Links */
+.note-editor-content a {
+  color: hsl(var(--primary));
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.note-editor-content a:hover {
+  text-decoration-color: hsl(var(--primary));
+}
+
+/* Wiki link styling */
+.wiki-link {
+  color: hsl(var(--primary));
+  background: hsl(var(--primary) / 0.1);
+  padding: 0.1em 0.3em;
+  border-radius: 4px;
+  text-decoration: none;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background 0.15s ease;
+}
+
+.wiki-link:hover {
+  background: hsl(var(--primary) / 0.2);
+}
+
+/* Selection */
+.note-editor-content ::selection {
+  background: hsl(var(--primary) / 0.2);
 }
 
 /* Slash Command Menu (tippy.js) */

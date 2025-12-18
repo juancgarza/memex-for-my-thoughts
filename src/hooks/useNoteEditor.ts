@@ -2,16 +2,9 @@
 
 import { useEffect, useRef } from "react";
 import { useEditor } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import Placeholder from "@tiptap/extension-placeholder";
-import HorizontalRule from "@tiptap/extension-horizontal-rule";
-import Bold from "@tiptap/extension-bold";
-import Italic from "@tiptap/extension-italic";
-import { WikiLink, convertWikiLinksToHTML } from "@/lib/tiptap/wiki-link";
-import {
-  SlashCommands,
-  setCommandListComponent,
-} from "@/lib/tiptap/slash-commands";
+import { convertWikiLinksToHTML } from "@/lib/tiptap/wiki-link";
+import { setCommandListComponent } from "@/lib/tiptap/slash-commands";
+import { ExtensionKit } from "@/lib/tiptap/extension-kit";
 import { CommandList } from "@/components/notes/CommandList";
 
 // Register CommandList component for slash commands
@@ -21,12 +14,14 @@ interface UseNoteEditorOptions {
   initialContent?: string;
   onUpdate?: (content: string) => void;
   onLinkClick?: (title: string) => void;
+  placeholder?: string;
 }
 
 export const useNoteEditor = ({
   initialContent = "",
   onUpdate,
   onLinkClick,
+  placeholder,
 }: UseNoteEditorOptions) => {
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const initialContentRef = useRef(initialContent);
@@ -55,38 +50,12 @@ export const useNoteEditor = ({
           createdEditor.commands.setContent(htmlContent);
         }
       },
-      extensions: [
-        StarterKit.configure({
-          heading: { levels: [1, 2, 3] },
-          horizontalRule: false,
-          bold: false,
-          italic: false,
-        }),
-        HorizontalRule.extend({
-          addInputRules() {
-            return [];
-          },
-        }),
-        Bold.extend({
-          addInputRules() {
-            return [];
-          },
-        }),
-        Italic.extend({
-          addInputRules() {
-            return [];
-          },
-        }),
-        Placeholder.configure({
-          placeholder: 'Type "/" for commands...',
-        }),
-        WikiLink.configure({
-          onLinkClick: (title: string) => {
-            onLinkClickRef.current?.(title);
-          },
-        }),
-        SlashCommands,
-      ],
+      extensions: ExtensionKit({
+        onLinkClick: (title: string) => {
+          onLinkClickRef.current?.(title);
+        },
+        placeholder,
+      }),
       editorProps: {
         attributes: {
           class: "note-editor-content focus:outline-none min-h-[60vh]",

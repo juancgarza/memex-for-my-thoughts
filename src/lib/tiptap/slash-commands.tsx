@@ -15,11 +15,19 @@ export interface CommandItem {
 export const getSuggestionItems = ({ query }: { query: string }): CommandItem[] => {
   const items: CommandItem[] = [
     {
+      title: "Text",
+      description: "Plain paragraph text",
+      icon: "¶",
+      command: ({ editor, range }) => {
+        editor.chain().focus().deleteRange(range).setParagraph().run();
+      },
+    },
+    {
       title: "Heading 1",
       description: "Large section heading",
       icon: "H1",
       command: ({ editor, range }) => {
-        editor.chain().focus().deleteRange(range).setNode("heading", { level: 1 }).run();
+        editor.chain().focus().deleteRange(range).setHeading({ level: 1 }).run();
       },
     },
     {
@@ -27,7 +35,7 @@ export const getSuggestionItems = ({ query }: { query: string }): CommandItem[] 
       description: "Medium section heading",
       icon: "H2",
       command: ({ editor, range }) => {
-        editor.chain().focus().deleteRange(range).setNode("heading", { level: 2 }).run();
+        editor.chain().focus().deleteRange(range).setHeading({ level: 2 }).run();
       },
     },
     {
@@ -35,7 +43,7 @@ export const getSuggestionItems = ({ query }: { query: string }): CommandItem[] 
       description: "Small section heading",
       icon: "H3",
       command: ({ editor, range }) => {
-        editor.chain().focus().deleteRange(range).setNode("heading", { level: 3 }).run();
+        editor.chain().focus().deleteRange(range).setHeading({ level: 3 }).run();
       },
     },
     {
@@ -59,7 +67,7 @@ export const getSuggestionItems = ({ query }: { query: string }): CommandItem[] 
       description: "Add a blockquote",
       icon: "❝",
       command: ({ editor, range }) => {
-        editor.chain().focus().deleteRange(range).toggleBlockquote().run();
+        editor.chain().focus().deleteRange(range).setBlockquote().run();
       },
     },
     {
@@ -67,7 +75,7 @@ export const getSuggestionItems = ({ query }: { query: string }): CommandItem[] 
       description: "Add a code block",
       icon: "</>",
       command: ({ editor, range }) => {
-        editor.chain().focus().deleteRange(range).toggleCodeBlock().run();
+        editor.chain().focus().deleteRange(range).setCodeBlock().run();
       },
     },
     {
@@ -159,6 +167,21 @@ export const SlashCommands = Extension.create({
         },
         items: getSuggestionItems,
         render: renderSuggestion,
+        // Allow slash commands at start of line or after whitespace
+        allowSpaces: false,
+        startOfLine: false,
+        // Allow in empty documents
+        allow: ({ editor, state, range }: { editor: Editor; state: any; range: Range }) => {
+          // Get the text before the cursor in the current block
+          const $from = state.doc.resolve(range.from);
+          const textBefore = $from.parent.textBetween(0, $from.parentOffset, undefined, "\ufffc");
+          
+          // Allow if we're at start of block or after whitespace
+          const isAtStart = textBefore === "" || textBefore === "/";
+          const isAfterWhitespace = /\s\/$/.test(textBefore);
+          
+          return isAtStart || isAfterWhitespace;
+        },
       },
     };
   },

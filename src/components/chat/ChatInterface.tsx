@@ -5,8 +5,16 @@ import { DefaultChatTransport } from "ai";
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useMemo, useCallback, useState } from "react";
 import { Plus } from "lucide-react";
+import { EditorContent } from "@tiptap/react";
+import { useChatEditor } from "@/hooks/useChatEditor";
+import {
+  extractPlainTextWithMentions,
+  extractNoteMentions,
+} from "@/lib/tiptap/note-mention";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectSeparator, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { MODELS, DEFAULT_MODEL, type ModelId } from "@/lib/models";
 
 interface ChatInterfaceProps {
   conversationId: Id<"conversations">;
@@ -18,8 +26,9 @@ export function ChatInterface({
   onAddToCanvas,
 }: ChatInterfaceProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [input, setInput] = useState("");
+  const [selectedModel, setSelectedModel] = useState<ModelId>(DEFAULT_MODEL);
   const storedMessages = useQuery(api.messages.list, { conversationId });
+  const notes = useQuery(api.canvas.listNotes);
   const sendMessageToDb = useMutation(api.messages.send);
   const updateTitle = useMutation(api.conversations.updateTitle);
   const embedMessage = useAction(api.embeddings.embedMessage);
@@ -64,6 +73,91 @@ export function ChatInterface({
   const isLoading = status === "streaming" || status === "submitted";
   const isReady = status === "ready";
 
+  // Extract note titles for @mention suggestions (first line only)
+  const noteTitles = useMemo(() => {
+    if (!notes) return [];
+    return notes.map((n) => {
+      // Strip HTML tags first, then get first line
+      const textContent = n.content.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+      const firstLine = textContent.split("\n")[0];
+      // Remove markdown heading prefix
+      const title = firstLine.replace(/^#\s*/, "").trim().slice(0, 50) || "Untitled";
+      return {
+        id: n._id,
+        label: title,
+      };
+    });
+  }, [notes]);
+
+  // Handle message submission with note context
+  const handleSubmit = useCallback(
+    async (text: string, mentions: Array<{ id: string; label: string }>) => {
+      if (!text.trim() || !isReady) return;
+
+      // Build context from mentioned notes
+      let messageWithContext = text;
+      if (mentions.length > 0 && notes) {
+        const noteContents = mentions
+          .map((mention) => {
+            const note = notes.find((n) => n._id === mention.id);
+            if (note) {
+              return `[Note: ${mention.label}]\n${note.content}`;
+            }
+            return null;
+          })
+          .filter(Boolean);
+
+        if (noteContents.length > 0) {
+          // Prepend note context to the message for the AI
+          messageWithContext = `${text}\n\n---\nReferenced Notes:\n${noteContents.join("\n\n")}`;
+        }
+      }
+
+      // Save user message to Convex (just the text, not the context)
+      const messageId = await sendMessageToDb({
+        conversationId,
+        role: "user",
+        content: text,
+      });
+
+      // Embed the user message
+      embedMessage({
+        messageId,
+        content: text,
+      }).catch(console.error);
+
+      // Update title if first message
+      if (!storedMessages || storedMessages.length === 0) {
+        const title = text.slice(0, 50) + (text.length > 50 ? "..." : "");
+        await updateTitle({ id: conversationId, title });
+      }
+
+      // Send to AI with context
+      sendMessage({ text: messageWithContext }, {
+        body: { model: selectedModel },
+      });
+    },
+    [
+      isReady,
+      notes,
+      sendMessageToDb,
+      conversationId,
+      embedMessage,
+      storedMessages,
+      updateTitle,
+      sendMessage,
+      selectedModel,
+    ]
+  );
+
+  // Initialize TipTap chat editor
+  const { editor, isEmpty } = useChatEditor({
+    onSubmit: handleSubmit,
+    getNoteTitles: () => noteTitles,
+    placeholder: "Message... Use @ to mention notes",
+    disabled: isLoading,
+  });
+
   // Sync stored messages to useChat when they load
   useEffect(() => {
     if (storedMessages && storedMessages.length > 0 && messages.length === 0) {
@@ -76,37 +170,6 @@ export function ChatInterface({
       );
     }
   }, [storedMessages, messages.length, setMessages]);
-
-  const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || !isReady) return;
-
-    const currentInput = input;
-    setInput("");
-
-    // Save user message to Convex
-    const messageId = await sendMessageToDb({
-      conversationId,
-      role: "user",
-      content: currentInput,
-    });
-
-    // Embed the user message
-    embedMessage({
-      messageId,
-      content: currentInput,
-    }).catch(console.error);
-
-    // Update title if first message
-    if (!storedMessages || storedMessages.length === 0) {
-      const title =
-        currentInput.slice(0, 50) + (currentInput.length > 50 ? "..." : "");
-      await updateTitle({ id: conversationId, title });
-    }
-
-    // Send to AI
-    sendMessage({ text: currentInput });
-  };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -139,7 +202,7 @@ export function ChatInterface({
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 && (
           <div className="flex items-center justify-center h-full text-muted-foreground">
-            Start a conversation...
+            Start a conversation... Use @ to reference your notes
           </div>
         )}
         {messages.map((message) => {
@@ -199,31 +262,73 @@ export function ChatInterface({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Form */}
-      <form onSubmit={onSubmit} className="p-3 md:p-4 border-t border-border bg-background">
+      {/* TipTap Input */}
+      <div className="p-3 md:p-4 border-t border-border bg-background">
         <div className="flex gap-2">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Type a message..."
-            disabled={isLoading}
-            className="flex-1 px-4 py-3 bg-card border border-input rounded-xl text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent transition-colors disabled:opacity-50 text-base"
-          />
+          <div
+            className={`flex-1 bg-card border border-input rounded-xl text-foreground focus-within:ring-2 focus-within:ring-ring focus-within:border-transparent transition-colors ${
+              isLoading ? "opacity-50" : ""
+            }`}
+          >
+            <EditorContent editor={editor} />
+          </div>
+
+          <Select value={selectedModel} onValueChange={(v) => setSelectedModel(v as ModelId)}>
+            <SelectTrigger className="w-[160px] h-9 text-xs self-end">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectLabel>Recommended</SelectLabel>
+                {MODELS.filter(m => m.category === "recommended").map((model) => (
+                  <SelectItem key={model.id} value={model.id}>
+                    {model.name}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+              <SelectSeparator />
+              <SelectGroup>
+                <SelectLabel>Anthropic</SelectLabel>
+                {MODELS.filter(m => m.category === "anthropic").map((model) => (
+                  <SelectItem key={model.id} value={model.id}>
+                    {model.name}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+              <SelectSeparator />
+              <SelectGroup>
+                <SelectLabel>OpenAI</SelectLabel>
+                {MODELS.filter(m => m.category === "openai").map((model) => (
+                  <SelectItem key={model.id} value={model.id}>
+                    {model.name}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
 
           {isLoading ? (
             <button
               type="button"
               onClick={stop}
-              className="px-4 md:px-6 py-3 bg-destructive hover:bg-destructive/90 text-destructive-foreground rounded-xl font-medium transition-colors active:scale-95"
+              className="px-4 md:px-6 py-3 bg-destructive hover:bg-destructive/90 text-destructive-foreground rounded-xl font-medium transition-colors active:scale-95 self-end"
             >
               Stop
             </button>
           ) : (
             <button
-              type="submit"
-              disabled={!input.trim()}
-              className="px-4 md:px-6 py-3 bg-primary hover:bg-primary/90 text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-medium transition-colors active:scale-95"
+              type="button"
+              onClick={() => {
+                if (editor && !isEmpty()) {
+                  const html = editor.getHTML();
+                  const text = extractPlainTextWithMentions(html);
+                  const mentions = extractNoteMentions(html);
+                  handleSubmit(text, mentions);
+                  editor.commands.clearContent();
+                }
+              }}
+              disabled={isEmpty()}
+              className="px-4 md:px-6 py-3 bg-primary hover:bg-primary/90 text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-medium transition-colors active:scale-95 self-end"
             >
               Send
             </button>
@@ -242,7 +347,7 @@ export function ChatInterface({
               Regenerate response
             </button>
           )}
-      </form>
+      </div>
     </div>
   );
 }

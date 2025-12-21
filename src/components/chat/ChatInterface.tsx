@@ -264,6 +264,44 @@ export function ChatInterface({
 
       {/* TipTap Input */}
       <div className="p-3 md:p-4 border-t border-border bg-background">
+        {/* Model selector - above input on mobile, inline on desktop */}
+        <div className="flex items-center justify-between mb-2 md:hidden">
+          <span className="text-xs text-muted-foreground">Model:</span>
+          <Select value={selectedModel} onValueChange={(v) => setSelectedModel(v as ModelId)}>
+            <SelectTrigger className="w-auto h-7 text-xs gap-1 px-2">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectLabel>Recommended</SelectLabel>
+                {MODELS.filter(m => m.category === "recommended").map((model) => (
+                  <SelectItem key={model.id} value={model.id}>
+                    {model.name}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+              <SelectSeparator />
+              <SelectGroup>
+                <SelectLabel>Anthropic</SelectLabel>
+                {MODELS.filter(m => m.category === "anthropic").map((model) => (
+                  <SelectItem key={model.id} value={model.id}>
+                    {model.name}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+              <SelectSeparator />
+              <SelectGroup>
+                <SelectLabel>OpenAI</SelectLabel>
+                {MODELS.filter(m => m.category === "openai").map((model) => (
+                  <SelectItem key={model.id} value={model.id}>
+                    {model.name}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        </div>
+
         <div className="flex gap-2">
           <div
             className={`flex-1 bg-card border border-input rounded-xl text-foreground focus-within:ring-2 focus-within:ring-ring focus-within:border-transparent transition-colors ${
@@ -273,8 +311,9 @@ export function ChatInterface({
             <EditorContent editor={editor} />
           </div>
 
+          {/* Desktop model selector */}
           <Select value={selectedModel} onValueChange={(v) => setSelectedModel(v as ModelId)}>
-            <SelectTrigger className="w-[160px] h-9 text-xs self-end">
+            <SelectTrigger className="hidden md:flex w-[160px] h-9 text-xs self-end">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

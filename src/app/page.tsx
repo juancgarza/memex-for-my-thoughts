@@ -89,14 +89,27 @@ export default function Home() {
   }, [view, isMobile]);
 
   // Keyboard shortcuts (vim-style with 'g' leader key)
+  // Only active when not typing in an input field
   useEffect(() => {
+    const isTyping = () => {
+      const el = document.activeElement;
+      if (!el) return false;
+      const tagName = el.tagName.toLowerCase();
+      if (tagName === "input" || tagName === "textarea") return true;
+      if (el.getAttribute("contenteditable") === "true") return true;
+      // Check if inside a contenteditable parent (TipTap editors)
+      if (el.closest("[contenteditable='true']")) return true;
+      return false;
+    };
+
     const unsubscribe = tinykeys(window, {
       // g then c = chat, g then v = canvas, g then n = notes
-      "g c": () => setView("chat"),
-      "g v": () => setView("canvas"),
-      "g n": () => setView("notes"),
+      "g c": () => { if (!isTyping()) setView("chat"); },
+      "g v": () => { if (!isTyping()) setView("canvas"); },
+      "g n": () => { if (!isTyping()) setView("notes"); },
       // Navigate between views: g h (prev) and g l (next) - vim style h/l
       "g h": () => {
+        if (isTyping()) return;
         setView(prev => {
           const currentIndex = VIEWS.indexOf(prev);
           const prevIndex = (currentIndex - 1 + VIEWS.length) % VIEWS.length;
@@ -104,6 +117,7 @@ export default function Home() {
         });
       },
       "g l": () => {
+        if (isTyping()) return;
         setView(prev => {
           const currentIndex = VIEWS.indexOf(prev);
           const nextIndex = (currentIndex + 1) % VIEWS.length;
@@ -111,11 +125,11 @@ export default function Home() {
         });
       },
       // New chat: g o (open new)
-      "g o": () => handleNewChat(),
+      "g o": () => { if (!isTyping()) handleNewChat(); },
       // New note: g n n (go notes + new)
-      "g n n": () => handleNewNote(),
+      "g n n": () => { if (!isTyping()) handleNewNote(); },
       // Toggle theme: g t
-      "g t": () => toggleTheme(),
+      "g t": () => { if (!isTyping()) toggleTheme(); },
     });
     return () => unsubscribe();
   }, [handleNewChat, handleNewNote, toggleTheme]);

@@ -410,8 +410,12 @@ export default function Home() {
         </nav>
       )}
 
-      {/* Floating Action Buttons */}
-      <div className="fixed bottom-20 md:bottom-6 right-4 md:right-6 z-50 flex flex-col items-end gap-3 safe-area-bottom">
+      {/* Floating Action Buttons - moved to left side on mobile chat view to avoid input overlap */}
+      <div className={`fixed z-50 flex flex-col gap-3 ${
+        isMobile && view === "chat" 
+          ? "left-4 bottom-20 items-start" 
+          : "right-4 md:right-6 bottom-20 md:bottom-6 items-end safe-area-bottom"
+      }`}>
         {/* New Chat Button */}
         <button
           onClick={handleNewChat}

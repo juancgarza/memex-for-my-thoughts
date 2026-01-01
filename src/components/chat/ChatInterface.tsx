@@ -6,7 +6,7 @@ import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
 import { useEffect, useRef, useMemo, useCallback, useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Copy, Check, Trash2 } from "lucide-react";
 import { EditorContent } from "@tiptap/react";
 import { useChatEditor } from "@/hooks/useChatEditor";
 import { MarkdownMessage } from "./MarkdownMessage";
@@ -28,11 +28,14 @@ export function ChatInterface({
 }: ChatInterfaceProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [selectedModel, setSelectedModel] = useState<ModelId>(DEFAULT_MODEL);
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const storedMessages = useQuery(api.messages.list, { conversationId });
   const notes = useQuery(api.canvas.listNotes);
   const sendMessageToDb = useMutation(api.messages.send);
+  const deleteMessage = useMutation(api.messages.remove);
   const updateTitle = useMutation(api.conversations.updateTitle);
   const embedMessage = useAction(api.embeddings.embedMessage);
+  const findRelated = useAction(api.embeddings.findRelated);
 
   const { messages, sendMessage, status, stop, error, setMessages, regenerate } =
     useChat({
@@ -90,28 +93,57 @@ export function ChatInterface({
     });
   }, [notes]);
 
-  // Handle message submission with note context
+  // Handle message submission with note context (manual @mentions + automatic RAG)
   const handleSubmit = useCallback(
     async (text: string, mentions: Array<{ id: string; label: string }>) => {
       if (!text.trim() || !isReady) return;
 
-      // Build context from mentioned notes
-      let messageWithContext = text;
+      // Build context from manually mentioned notes
+      const mentionedNoteContents: string[] = [];
+      const mentionedNoteIds = new Set<string>();
+      
       if (mentions.length > 0 && notes) {
-        const noteContents = mentions
-          .map((mention) => {
-            const note = notes.find((n) => n._id === mention.id);
-            if (note) {
-              return `[Note: ${mention.label}]\n${note.content}`;
-            }
-            return null;
-          })
-          .filter(Boolean);
+        mentions.forEach((mention) => {
+          const note = notes.find((n) => n._id === mention.id);
+          if (note) {
+            mentionedNoteContents.push(`[Note: ${mention.label}]\n${note.content}`);
+            mentionedNoteIds.add(mention.id);
+          }
+        });
+      }
 
-        if (noteContents.length > 0) {
-          // Prepend note context to the message for the AI
-          messageWithContext = `${text}\n\n---\nReferenced Notes:\n${noteContents.join("\n\n")}`;
+      // Auto-RAG: Find related notes if no explicit mentions (or in addition to them)
+      let ragNoteContents: string[] = [];
+      try {
+        const related = await findRelated({ query: text, limit: 3 });
+        // Only include notes (not messages) for RAG context
+        // Filter out notes that were already explicitly mentioned
+        const relevantNotes = related.nodes
+          .filter((n): n is NonNullable<typeof n> => n !== null)
+          .filter((n) => !mentionedNoteIds.has(n._id))
+          .filter((n) => n.score > 0.3); // Only include if reasonably relevant
+        
+        if (relevantNotes.length > 0) {
+          ragNoteContents = relevantNotes.map((n) => {
+            const title = n.content.split('\n')[0].replace(/^#\s*/, '').slice(0, 50) || 'Untitled';
+            return `[Related Note (${Math.round(n.score * 100)}% match): ${title}]\n${n.content.slice(0, 500)}${n.content.length > 500 ? '...' : ''}`;
+          });
         }
+      } catch (err) {
+        console.error("RAG search failed:", err);
+      }
+
+      // Combine all context
+      let messageWithContext = text;
+      const allContext = [...mentionedNoteContents, ...ragNoteContents];
+      
+      if (allContext.length > 0) {
+        const contextLabel = mentionedNoteContents.length > 0 && ragNoteContents.length > 0
+          ? "Referenced & Related Notes"
+          : mentionedNoteContents.length > 0
+          ? "Referenced Notes"
+          : "Related Notes (auto-retrieved)";
+        messageWithContext = `${text}\n\n---\n${contextLabel}:\n${allContext.join("\n\n")}`;
       }
 
       // Save user message to Convex (just the text, not the context)
@@ -141,6 +173,7 @@ export function ChatInterface({
     [
       isReady,
       notes,
+      findRelated,
       sendMessageToDb,
       conversationId,
       embedMessage,
@@ -183,6 +216,28 @@ export function ChatInterface({
       .map((p) => p.text)
       .join("");
   };
+
+  // Copy message to clipboard
+  const handleCopyMessage = useCallback(async (messageId: string, text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedMessageId(messageId);
+      setTimeout(() => setCopiedMessageId(null), 2000);
+    } catch (err) {
+      console.error("Failed to copy:", err);
+    }
+  }, []);
+
+  // Delete message from conversation
+  const handleDeleteMessage = useCallback(async (messageId: string) => {
+    try {
+      await deleteMessage({ id: messageId as Id<"messages"> });
+      // Remove from local state as well
+      setMessages(prev => prev.filter(m => m.id !== messageId));
+    } catch (err) {
+      console.error("Failed to delete message:", err);
+    }
+  }, [deleteMessage, setMessages]);
 
   return (
     <div className="flex flex-col h-full bg-background">
@@ -231,16 +286,37 @@ export function ChatInterface({
                 )}
               </div>
 
-              {/* Add to canvas button - below message for assistant */}
-              {onAddToCanvas && text && isAssistant && (
-                <button
-                  onClick={() => onAddToCanvas(text)}
-                  className="mt-2 flex items-center gap-1.5 px-3 py-1.5 text-xs md:text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors active:scale-95"
-                  title="Add to canvas"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Add to Canvas</span>
-                </button>
+              {/* Action buttons - below message */}
+              {text && (
+                <div className={`mt-2 flex items-center gap-1 ${message.role === "user" ? "justify-end" : ""}`}>
+                  <button
+                    onClick={() => handleCopyMessage(message.id, text)}
+                    className="flex items-center gap-1.5 px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors active:scale-95"
+                    title="Copy message"
+                  >
+                    {copiedMessageId === message.id ? (
+                      <Check className="w-3.5 h-3.5 text-green-500" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                  {onAddToCanvas && isAssistant && (
+                    <button
+                      onClick={() => onAddToCanvas(text)}
+                      className="flex items-center gap-1.5 px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors active:scale-95"
+                      title="Add to canvas"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleDeleteMessage(message.id)}
+                    className="flex items-center gap-1.5 px-2 py-1 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors active:scale-95"
+                    title="Delete message"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               )}
             </div>
           );

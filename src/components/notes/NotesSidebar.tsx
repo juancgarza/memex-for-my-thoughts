@@ -21,7 +21,7 @@ export function NotesSidebar({ selectedId, onSelect, onClose, onImportClick, onD
   const handleNewNote = async () => {
     const id = await createNode({
       type: "note",
-      content: "# Untitled\n\nStart writing...",
+      content: "<h1>Untitled</h1><p>Start writing...</p>",
       x: 0,
       y: 0,
       sourceType: "manual",

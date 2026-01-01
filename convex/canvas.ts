@@ -264,7 +264,7 @@ export const findDailyNote = query({
   },
 });
 
-// Create a daily note with template
+// Create a daily note with template (using HTML for TipTap)
 export const createDailyNote = mutation({
   args: { dateString: v.string() }, // Format: "YYYY-MM-DD"
   handler: async (ctx, args) => {
@@ -273,22 +273,8 @@ export const createDailyNote = mutation({
     const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
     const monthDay = date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
     
-    const content = `# ${args.dateString}
-
-## ${dayName}, ${monthDay}
-
-### Morning
-- 
-
-### Tasks
-- [ ] 
-
-### Notes
-
-
-### Evening Reflection
-
-`;
+    // Use HTML format for TipTap editor
+    const content = `<h1>${args.dateString}</h1><h2>${dayName}, ${monthDay}</h2><h3>Morning</h3><ul><li><p></p></li></ul><h3>Tasks</h3><ul data-type="taskList"><li data-type="taskItem" data-checked="false"><label><input type="checkbox"><span></span></label><div><p></p></div></li></ul><h3>Notes</h3><p></p><h3>Evening Reflection</h3><p></p>`;
     
     return await ctx.db.insert("canvasNodes", {
       type: "note",

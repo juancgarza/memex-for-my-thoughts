@@ -73,7 +73,7 @@ export default function Home() {
   const handleNewNote = useCallback(async () => {
     const id = await createNode({
       type: "note",
-      content: "# Untitled\n\n",
+      content: "<h1>Untitled</h1><p></p>",
       x: 0,
       y: 0,
       sourceType: "manual",

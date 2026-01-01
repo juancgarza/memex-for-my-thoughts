@@ -44,9 +44,10 @@ export function NoteEditor({ noteId, onNavigate }: NoteEditorProps) {
     if (!notes) return [];
 
     return notes.map((n) => {
-      // Extract title from first line
-      const firstLine = n.content.split("\n")[0];
-      const title = firstLine.replace(/^#\s*/, "").trim() || "Untitled";
+      // Extract title - strip HTML tags first, then get first line
+      const textContent = n.content.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+      const firstLine = textContent.split("\n")[0] || textContent.slice(0, 100);
+      const title = firstLine.replace(/^#+\s*/, "").trim().slice(0, 50) || "Untitled";
       return {
         id: n._id,
         title,

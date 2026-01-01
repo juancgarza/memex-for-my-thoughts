@@ -35,10 +35,14 @@ export function NotesSidebar({ selectedId, onSelect, onClose, onImportClick, onD
     await deleteNode({ id });
   };
 
-  // Extract title from note content (first line or # heading)
+  // Extract title from note content (handles both HTML and markdown)
   const getTitle = (content: string) => {
-    const firstLine = content.split("\n")[0];
-    return firstLine.replace(/^#\s*/, "").trim() || "Untitled";
+    // Strip HTML tags first
+    const textContent = content.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+    // Get first line
+    const firstLine = textContent.split("\n")[0];
+    // Remove markdown heading prefix and clean up
+    return firstLine.replace(/^#\s*/, "").trim().slice(0, 50) || "Untitled";
   };
 
   const formatDate = (timestamp: number) => {

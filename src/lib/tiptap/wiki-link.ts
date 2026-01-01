@@ -135,8 +135,103 @@ export function extractWikiLinks(content: string): string[] {
 
 // Convert plain text with [[links]] to HTML with wiki-link marks
 export function convertWikiLinksToHTML(text: string): string {
-  return text.replace(
+  // First convert wiki links
+  let html = text.replace(
     /\[\[([^\]]+)\]\]/g,
     '<span data-wiki-link="true" data-title="$1" class="wiki-link text-primary hover:text-primary/80 cursor-pointer font-medium underline decoration-primary/50 hover:decoration-primary">[[$1]]</span>'
   );
+  
+  // Convert markdown to HTML for TipTap
+  // Split into lines and process
+  const lines = html.split('\n');
+  const processedLines: string[] = [];
+  let inList = false;
+  let listType: 'ul' | 'ol' | null = null;
+  
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i];
+    
+    // Headings
+    if (line.startsWith('### ')) {
+      if (inList) { processedLines.push(listType === 'ul' ? '</ul>' : '</ol>'); inList = false; listType = null; }
+      processedLines.push(`<h3>${line.slice(4)}</h3>`);
+      continue;
+    }
+    if (line.startsWith('## ')) {
+      if (inList) { processedLines.push(listType === 'ul' ? '</ul>' : '</ol>'); inList = false; listType = null; }
+      processedLines.push(`<h2>${line.slice(3)}</h2>`);
+      continue;
+    }
+    if (line.startsWith('# ')) {
+      if (inList) { processedLines.push(listType === 'ul' ? '</ul>' : '</ol>'); inList = false; listType = null; }
+      processedLines.push(`<h1>${line.slice(2)}</h1>`);
+      continue;
+    }
+    
+    // Task lists (- [ ] or - [x])
+    const taskMatch = line.match(/^- \[([ x])\] (.*)$/);
+    if (taskMatch) {
+      if (!inList || listType !== 'ul') {
+        if (inList) processedLines.push(listType === 'ul' ? '</ul>' : '</ol>');
+        processedLines.push('<ul data-type="taskList">');
+        inList = true;
+        listType = 'ul';
+      }
+      const checked = taskMatch[1] === 'x';
+      processedLines.push(`<li data-type="taskItem" data-checked="${checked}"><label><input type="checkbox" ${checked ? 'checked' : ''}><span></span></label><div><p>${taskMatch[2]}</p></div></li>`);
+      continue;
+    }
+    
+    // Unordered lists
+    if (line.startsWith('- ')) {
+      if (!inList || listType !== 'ul') {
+        if (inList) processedLines.push(listType === 'ul' ? '</ul>' : '</ol>');
+        processedLines.push('<ul>');
+        inList = true;
+        listType = 'ul';
+      }
+      processedLines.push(`<li><p>${line.slice(2)}</p></li>`);
+      continue;
+    }
+    
+    // Ordered lists
+    const orderedMatch = line.match(/^\d+\. (.*)$/);
+    if (orderedMatch) {
+      if (!inList || listType !== 'ol') {
+        if (inList) processedLines.push(listType === 'ul' ? '</ul>' : '</ol>');
+        processedLines.push('<ol>');
+        inList = true;
+        listType = 'ol';
+      }
+      processedLines.push(`<li><p>${orderedMatch[1]}</p></li>`);
+      continue;
+    }
+    
+    // Close list if we hit a non-list line
+    if (inList && line.trim() !== '') {
+      processedLines.push(listType === 'ul' ? '</ul>' : '</ol>');
+      inList = false;
+      listType = null;
+    }
+    
+    // Empty lines or regular paragraphs
+    if (line.trim() === '') {
+      if (inList) {
+        processedLines.push(listType === 'ul' ? '</ul>' : '</ol>');
+        inList = false;
+        listType = null;
+      }
+      // Keep empty paragraphs for spacing
+      processedLines.push('<p></p>');
+    } else {
+      processedLines.push(`<p>${line}</p>`);
+    }
+  }
+  
+  // Close any open list
+  if (inList) {
+    processedLines.push(listType === 'ul' ? '</ul>' : '</ol>');
+  }
+  
+  return processedLines.join('');
 }

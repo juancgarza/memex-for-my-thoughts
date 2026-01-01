@@ -9,6 +9,7 @@ import { useEffect, useRef, useMemo, useCallback, useState } from "react";
 import { Plus } from "lucide-react";
 import { EditorContent } from "@tiptap/react";
 import { useChatEditor } from "@/hooks/useChatEditor";
+import { MarkdownMessage } from "./MarkdownMessage";
 import {
   extractPlainTextWithMentions,
   extractNoteMentions,
@@ -222,8 +223,12 @@ export function ChatInterface({
                     : "bg-card text-card-foreground border border-border"
                 }`}
               >
-                {/* Render message content */}
-                <div className="whitespace-pre-wrap text-sm md:text-base">{text}</div>
+                {/* Render message content - markdown for assistant, plain for user */}
+                {message.role === "assistant" ? (
+                  <MarkdownMessage content={text} className="text-sm md:text-base" />
+                ) : (
+                  <div className="whitespace-pre-wrap text-sm md:text-base">{text}</div>
+                )}
               </div>
 
               {/* Add to canvas button - below message for assistant */}

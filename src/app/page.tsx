@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { useMutation, useAction } from "convex/react";
+import { useMutation, useAction, useQuery } from "convex/react";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore - tinykeys types issue with package.json exports
 import { tinykeys } from "tinykeys";
@@ -51,8 +51,18 @@ export default function Home() {
   const createNode = useMutation(api.canvas.createNode);
   const createEdge = useMutation(api.canvas.createEdge);
   const createConversation = useMutation(api.conversations.create);
+  const createDailyNote = useMutation(api.canvas.createDailyNote);
   const embedCanvasNode = useAction(api.embeddings.embedCanvasNode);
   const findRelated = useAction(api.embeddings.findRelated);
+  
+  // Get today's date string for daily note lookup
+  const getTodayString = () => {
+    const today = new Date();
+    return today.toISOString().split('T')[0]; // YYYY-MM-DD
+  };
+  
+  const todayString = getTodayString();
+  const todaysDailyNote = useQuery(api.canvas.findDailyNote, { dateString: todayString });
 
   const handleNewChat = useCallback(async () => {
     const id = await createConversation({});
@@ -72,6 +82,20 @@ export default function Home() {
     setView("notes");
     if (isMobile) setSidebarOpen(false);
   }, [createNode, isMobile]);
+
+  // Open or create today's daily note
+  const handleDailyNote = useCallback(async () => {
+    if (todaysDailyNote) {
+      // Daily note exists, navigate to it
+      setSelectedNoteId(todaysDailyNote._id);
+    } else {
+      // Create new daily note
+      const id = await createDailyNote({ dateString: todayString });
+      setSelectedNoteId(id);
+    }
+    setView("notes");
+    if (isMobile) setSidebarOpen(false);
+  }, [todaysDailyNote, createDailyNote, todayString, isMobile]);
 
   // Detect mobile
   useEffect(() => {
@@ -130,11 +154,13 @@ export default function Home() {
       "g o": () => { if (!isTyping()) handleNewChat(); },
       // New note: g n n (go notes + new)
       "g n n": () => { if (!isTyping()) handleNewNote(); },
+      // Daily note: g d (go to daily)
+      "g d": () => { if (!isTyping()) handleDailyNote(); },
       // Toggle theme: g t
       "g t": () => { if (!isTyping()) toggleTheme(); },
     });
     return () => unsubscribe();
-  }, [handleNewChat, handleNewNote, toggleTheme]);
+  }, [handleNewChat, handleNewNote, handleDailyNote, toggleTheme]);
 
   const handleAddToCanvas = useCallback(
     async (content: string) => {
@@ -363,6 +389,7 @@ export default function Home() {
                 if (isMobile) setSidebarOpen(false);
               }}
               onImportClick={() => setIsImportModalOpen(true)}
+              onDailyNoteClick={handleDailyNote}
             />
           </div>
         )}

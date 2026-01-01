@@ -3,16 +3,17 @@
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
-import { FileText, Plus, Trash2, Download } from "lucide-react";
+import { FileText, Plus, Trash2, Download, Calendar } from "lucide-react";
 
 interface NotesSidebarProps {
   selectedId: Id<"canvasNodes"> | null;
   onSelect: (id: Id<"canvasNodes">) => void;
   onClose?: () => void;
   onImportClick?: () => void;
+  onDailyNoteClick?: () => void;
 }
 
-export function NotesSidebar({ selectedId, onSelect, onClose, onImportClick }: NotesSidebarProps) {
+export function NotesSidebar({ selectedId, onSelect, onClose, onImportClick, onDailyNoteClick }: NotesSidebarProps) {
   const notes = useQuery(api.canvas.listNotes);
   const createNode = useMutation(api.canvas.createNode);
   const deleteNode = useMutation(api.canvas.deleteNode);
@@ -50,6 +51,13 @@ export function NotesSidebar({ selectedId, onSelect, onClose, onImportClick }: N
       <div className="p-4 border-b border-border flex items-center justify-between">
         <h2 className="font-semibold text-foreground">Notes</h2>
         <div className="flex items-center gap-1">
+          <button
+            onClick={onDailyNoteClick}
+            className="p-2 hover:bg-muted rounded-lg transition-colors"
+            title="Today's daily note (g d)"
+          >
+            <Calendar className="w-4 h-4" />
+          </button>
           <button
             onClick={onImportClick}
             className="p-2 hover:bg-muted rounded-lg transition-colors"

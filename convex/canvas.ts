@@ -249,6 +249,61 @@ function extractWikiLinksFromContent(content: string): string[] {
   return links;
 }
 
+// Find today's daily note (if it exists)
+export const findDailyNote = query({
+  args: { dateString: v.string() }, // Format: "YYYY-MM-DD"
+  handler: async (ctx, args) => {
+    const nodes = await ctx.db.query("canvasNodes").collect();
+    const notes = nodes.filter((n) => n.type === "note");
+    
+    // Look for a note with title matching the date
+    return notes.find((note) => {
+      const title = extractNoteTitle(note.content);
+      return title === args.dateString;
+    }) || null;
+  },
+});
+
+// Create a daily note with template
+export const createDailyNote = mutation({
+  args: { dateString: v.string() }, // Format: "YYYY-MM-DD"
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const date = new Date(args.dateString);
+    const dayName = date.toLocaleDateString('en-US', { weekday: 'long' });
+    const monthDay = date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+    
+    const content = `# ${args.dateString}
+
+## ${dayName}, ${monthDay}
+
+### Morning
+- 
+
+### Tasks
+- [ ] 
+
+### Notes
+
+
+### Evening Reflection
+
+`;
+    
+    return await ctx.db.insert("canvasNodes", {
+      type: "note",
+      content,
+      x: 0,
+      y: 0,
+      width: 300,
+      height: 150,
+      sourceType: "manual",
+      createdAt: now,
+      updatedAt: now,
+    });
+  },
+});
+
 // Get backlinks for a note by its title (notes that link TO this note via [[wiki-links]])
 export const getWikiLinkBacklinks = query({
   args: { noteTitle: v.string() },

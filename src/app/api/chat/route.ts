@@ -1,3 +1,4 @@
+import { auth } from "@clerk/nextjs/server";
 import { anthropic } from "@ai-sdk/anthropic";
 import { openai } from "@ai-sdk/openai";
 import { streamText, UIMessage, convertToModelMessages } from "ai";
@@ -20,6 +21,11 @@ function getModel(modelId: ModelId) {
 }
 
 export async function POST(req: Request) {
+  const { userId } = await auth();
+  if (!userId) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+
   const { messages, model: modelId }: { messages: UIMessage[]; model?: ModelId } = await req.json();
 
   const result = streamText({

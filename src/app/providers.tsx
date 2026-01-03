@@ -1,5 +1,6 @@
 "use client";
 
+import { ClerkProvider } from "@clerk/nextjs";
 import { ConvexProvider, ConvexReactClient } from "convex/react";
 import { ReactNode } from "react";
 import { ThemeProvider } from "@/lib/theme";
@@ -14,12 +15,18 @@ export function Providers({ children }: { children: ReactNode }) {
   if (!convex) {
     // During build or if env var is missing, render children without Convex
     // This allows static pages to build
-    return <ThemeProvider>{children}</ThemeProvider>;
+    return (
+      <ClerkProvider>
+        <ThemeProvider>{children}</ThemeProvider>
+      </ClerkProvider>
+    );
   }
 
   return (
-    <ConvexProvider client={convex}>
-      <ThemeProvider>{children}</ThemeProvider>
-    </ConvexProvider>
+    <ClerkProvider>
+      <ConvexProvider client={convex}>
+        <ThemeProvider>{children}</ThemeProvider>
+      </ConvexProvider>
+    </ClerkProvider>
   );
 }

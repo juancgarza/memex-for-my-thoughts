@@ -4,10 +4,11 @@ import { v } from "convex/values";
 export default defineSchema({
   // Conversations - each chat session
   conversations: defineTable({
+    userId: v.string(),
     title: v.string(),
     createdAt: v.number(),
     updatedAt: v.number(),
-  }),
+  }).index("by_user", ["userId"]),
 
   // Messages within conversations
   messages: defineTable({
@@ -27,6 +28,7 @@ export default defineSchema({
 
   // Voice notes - audio recordings with transcriptions
   voiceNotes: defineTable({
+    userId: v.string(),
     fileId: v.id("_storage"), // Convex file storage reference
     duration: v.number(), // Duration in seconds
     transcription: v.optional(v.string()),
@@ -41,10 +43,13 @@ export default defineSchema({
     errorMessage: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
-  }).index("by_status", ["status"]),
+  })
+    .index("by_user", ["userId"])
+    .index("by_status", ["status"]),
 
   // Canvas nodes - blocks on the infinite canvas
   canvasNodes: defineTable({
+    userId: v.string(),
     type: v.union(
       v.literal("text"),
       v.literal("chat_reference"),
@@ -81,12 +86,13 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   })
+    .index("by_user", ["userId"])
     .index("by_sourceId", ["sourceId"])
     .index("by_parentNodeId", ["parentNodeId"])
     .vectorIndex("by_embedding", {
       vectorField: "embedding",
       dimensions: 1536,
-      filterFields: ["type"],
+      filterFields: ["type", "userId"],
     }),
 
   // Edges connecting canvas nodes

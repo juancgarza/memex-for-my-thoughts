@@ -1,18 +1,27 @@
 import { v } from "convex/values";
-import { mutation, query, action } from "./_generated/server";
+import { mutation, query, action, QueryCtx, MutationCtx } from "./_generated/server";
 import { api } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
 
 // Access environment variables
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const getEnv = (key: string) => (globalThis as any).process?.env?.[key] as string | undefined;
+const getEnv = (key: string) =>
+  (globalThis as any).process?.env?.[key] as string | undefined;
 const getSiteUrl = () => getEnv("SITE_URL") || "http://localhost:3005";
 const getOpenAIKey = () => getEnv("OPENAI_API_KEY");
+
+// Helper to get authenticated user
+async function getAuthenticatedUser(ctx: QueryCtx | MutationCtx) {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) throw new Error("Unauthorized");
+  return identity;
+}
 
 // Generate upload URL for audio file
 export const generateUploadUrl = mutation({
   args: {},
   handler: async (ctx) => {
+    await getAuthenticatedUser(ctx);
     return await ctx.storage.generateUploadUrl();
   },
 });
@@ -24,8 +33,10 @@ export const create = mutation({
     duration: v.number(),
   },
   handler: async (ctx, args) => {
+    const identity = await getAuthenticatedUser(ctx);
     const now = Date.now();
     return await ctx.db.insert("voiceNotes", {
+      userId: identity.subject,
       fileId: args.fileId,
       duration: args.duration,
       status: "uploaded",
@@ -51,6 +62,13 @@ export const updateStatus = mutation({
     errorMessage: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const identity = await getAuthenticatedUser(ctx);
+
+    const voiceNote = await ctx.db.get(args.id);
+    if (!voiceNote || voiceNote.userId !== identity.subject) {
+      throw new Error("Not found");
+    }
+
     const { id, status, transcription, errorMessage } = args;
     const updates: {
       status: typeof status;
@@ -77,7 +95,13 @@ export const updateStatus = mutation({
 export const get = query({
   args: { id: v.id("voiceNotes") },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.id);
+    const identity = await getAuthenticatedUser(ctx);
+
+    const voiceNote = await ctx.db.get(args.id);
+    if (!voiceNote || voiceNote.userId !== identity.subject) {
+      return null;
+    }
+    return voiceNote;
   },
 });
 
@@ -85,8 +109,11 @@ export const get = query({
 export const list = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
+    const identity = await getAuthenticatedUser(ctx);
+
     return await ctx.db
       .query("voiceNotes")
+      .withIndex("by_user", (q) => q.eq("userId", identity.subject))
       .order("desc")
       .take(args.limit ?? 20);
   },
@@ -96,6 +123,9 @@ export const list = query({
 export const getAudioUrl = query({
   args: { fileId: v.id("_storage") },
   handler: async (ctx, args) => {
+    // Note: We can't easily verify ownership of storage files
+    // The fileId should only be known if user has access to the voice note
+    await getAuthenticatedUser(ctx);
     return await ctx.storage.getUrl(args.fileId);
   },
 });
@@ -104,7 +134,7 @@ export const getAudioUrl = query({
 export const process = action({
   args: { voiceNoteId: v.id("voiceNotes") },
   handler: async (ctx, args): Promise<{ success: boolean; conceptCount: number }> => {
-    // Get voice note
+    // Get voice note (this will verify ownership via the query)
     const voiceNote = await ctx.runQuery(api.voiceNotes.get, {
       id: args.voiceNoteId,
     });
@@ -160,7 +190,7 @@ export const process = action({
         transcription,
       });
 
-      // Get existing notes for context
+      // Get existing notes for context (user-scoped via the query)
       const existingNodes = await ctx.runQuery(api.canvas.listNodes);
 
       // Extract concepts via AI (still use Vercel route for Anthropic)
